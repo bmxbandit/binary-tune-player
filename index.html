@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Tune Player</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        textarea, select, button {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        #tuneInput {
+            width: 100%;
+            height: 100px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+        }
+        #frequencyDisplay {
+            font-weight: bold;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .btn {
+            background-color: #f0f0f0;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #e0e0e0;
+        }
+        .btn svg {
+            width: 24px;
+            height: 24px;
+        }
+        .btn-play {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-play:hover {
+            background-color: #45a049;
+        }
+        .btn-stop {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-stop:hover {
+            background-color: #da190b;
+        }
+        #speedSelect {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .loop-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #instructions {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 5px solid #444;  /* Changed from 4px to 5px and color from #4CAF50 to #444 */
+        }
+    </style>
+</head>
+<body>
+    <h1>Binary Tune Player</h1>
+    <div id="instructions">
+        <h3>Instructions:</h3>
+        <p>Enter a binary string of any length to play a frequency, or enter multiple strings on separate lines to play a tune. Use a string of all zeros for silence. Longer strings allow for finer frequency control.</p>
+    </div>
+    <textarea id="tuneInput" placeholder="Enter binary strings, one per line"></textarea>
+    <div class="controls">
+        <button onclick="playTune()" class="btn btn-play" title="Play">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+        </button>
+        <button onclick="stopAudio()" class="btn btn-stop" title="Stop">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h12v12H6z"/>
+            </svg>
+        </button>
+        <select id="speedSelect">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="1.75">1.75x</option>
+            <option value="2">2x</option>
+        </select>
+        <div class="loop-container">
+            <input type="checkbox" id="loopCheckbox">
+            <label for="loopCheckbox">Loop</label>
+        </div>
+    </div>
+    <p>Current Frequency: <span id="frequencyDisplay">-</span> Hz</p>
+
+    <script>
+        // The JavaScript remains unchanged
+        let audioContext;
+        let oscillator;
+        let gainNode;
+        let currentNoteIndex = 0;
+        let tuneInterval;
+        let isPlaying = false;
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            oscillator = audioContext.createOscillator();
+            gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+        }
+
+        function binaryToFrequency(binary) {
+            const intValue = parseInt(binary, 2);
+            const maxValue = Math.pow(2, binary.length) - 1;
+            return 20 + (intValue / maxValue) * (20000 - 20);
+        }
+
+        function getSpeed() {
+            return parseFloat(document.getElementById('speedSelect').value);
+        }
+
+        function playTune() {
+            if (isPlaying) return;
+            
+            const tuneInput = document.getElementById('tuneInput').value;
+            const notes = tuneInput.split('\n').filter(note => note.trim() !== '');
+            
+            if (notes.length === 0) {
+                alert('Please enter at least one binary string');
+                return;
+            }
+
+            if (!audioContext) initAudio();
+            currentNoteIndex = 0;
+            oscillator.start();
+            isPlaying = true;
+
+            function playNextNote() {
+                if (currentNoteIndex >= notes.length) {
+                    if (document.getElementById('loopCheckbox').checked) {
+                        currentNoteIndex = 0;
+                    } else {
+                        stopAudio();
+                        return;
+                    }
+                }
+                const binary = notes[currentNoteIndex].trim();
+                if (!/^[01]+$/.test(binary)) {
+                    alert(`Invalid binary string: ${binary}`);
+                    stopAudio();
+                    return;
+                }
+                if (binary.split('0').join('').length === 0) {
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    document.getElementById('frequencyDisplay').textContent = 'Silent';
+                } else {
+                    const frequency = binaryToFrequency(binary);
+                    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                    document.getElementById('frequencyDisplay').textContent = frequency.toFixed(2);
+                    gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+                }
+
+                currentNoteIndex++;
+                
+                const speed = getSpeed();
+                tuneInterval = setTimeout(playNextNote, 500 / speed);
+            }
+
+            playNextNote();
+        }
+
+        function stopAudio() {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+                clearTimeout(tuneInterval);
+                initAudio();
+                isPlaying = false;
+                document.getElementById('frequencyDisplay').textContent = '-';
+            }
+        }
+    </script>
+</body>
+</html>
