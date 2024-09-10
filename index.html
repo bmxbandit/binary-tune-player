@@ -80,7 +80,7 @@
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 20px;
-            border-left: 5px solid #444;  /* Changed from 4px to 5px and color from #4CAF50 to #444 */
+            border-left: 5px solid #444;
         }
     </style>
 </head>
@@ -88,7 +88,7 @@
     <h1>Binary Tune Player</h1>
     <div id="instructions">
         <h3>Instructions:</h3>
-        <p>Enter a binary string of any length to play a frequency, or enter multiple strings on separate lines to play a tune. Use a string of all zeros for silence. Longer strings allow for finer frequency control.</p>
+        <p>Enter a binary string of any length to play a frequency, or enter multiple strings on separate lines to play a tune. Use a string of all zeros for silence. Longer strings allow for finer frequency control. Single line inputs will automatically loop.</p>
     </div>
     <textarea id="tuneInput" placeholder="Enter binary strings, one per line"></textarea>
     <div class="controls">
@@ -120,7 +120,6 @@
     <p>Current Frequency: <span id="frequencyDisplay">-</span> Hz</p>
 
     <script>
-        // The JavaScript remains unchanged
         let audioContext;
         let oscillator;
         let gainNode;
@@ -162,9 +161,11 @@
             oscillator.start();
             isPlaying = true;
 
+            const isSingleNote = notes.length === 1;
+            
             function playNextNote() {
                 if (currentNoteIndex >= notes.length) {
-                    if (document.getElementById('loopCheckbox').checked) {
+                    if (isSingleNote || document.getElementById('loopCheckbox').checked) {
                         currentNoteIndex = 0;
                     } else {
                         stopAudio();
